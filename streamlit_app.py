@@ -1,15 +1,39 @@
 import streamlit as st
 
-# アプリのタイトル
-st.title("ユーザー設定アプリ")
+# ユーザー名とパスワードの設定
+USER_CREDENTIALS = {
+    "user1": "password123",
+    "user2": "password456"
+}
 
-# ユーザーからの入力を受け取る
-with st.form("settings_form"):
-    user_name = st.text_input("お名前を入力してください")
-    user_color = st.color_picker("好きな色を選んでください", "#00f900")
-    submit_button = st.form_submit_button("設定を保存")
+# ログインセッションを管理するためのセッション状態
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
 
-# 設定が保存された場合の処理
-if submit_button:
-    st.success(f"設定が保存されました！お名前: {user_name}, 好きな色: {user_color}")
-    st.markdown(f"<h1 style='color: {user_color};'>こんにちは、{user_name}さん！</h1>", unsafe_allow_html=True)
+# ログインフォーム
+if not st.session_state.logged_in:
+    st.title("ログイン")
+
+    username = st.text_input("ユーザー名")
+    password = st.text_input("パスワード", type='password')
+
+    if st.button("ログイン"):
+        if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
+            st.session_state.logged_in = True
+            st.session_state.username = username
+            st.success("ログイン成功！")
+        else:
+            st.error("ユーザー名またはパスワードが正しくありません。")
+else:
+    # ログイン後の画面
+    st.title(f"ようこそ、{st.session_state.username}さん！")
+
+    # アイコンの表示
+    icon_url = "https://example.com/path/to/your/icon.png"  # アイコンのURLを指定
+    st.image(icon_url, width=100)  # アイコンを表示
+    st.write("ここにアプリのコンテンツを追加します。")
+
+    if st.button("ログアウト"):
+        st.session_state.logged_in = False
+        st.session_state.username = ""
+        st.success("ログアウトしました。")
