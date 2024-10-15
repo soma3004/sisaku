@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import hashlib
-from PIL import Image
 
 # データベース接続
 def get_db_connection():
@@ -55,6 +54,35 @@ def main():
 
     create_user_table()
 
+    # アイコンを右上に表示するためのスタイル
+    if 'username' in st.session_state:
+        icon = get_user_icon(st.session_state.username)
+        if icon:
+            st.markdown(
+                f"""
+                <style>
+                .icon {{
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 50%;
+                    overflow: hidden;
+                }}
+                .icon img {{
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }}
+                </style>
+                <div class="icon">
+                    <img src="data:image/png;base64,{icon.decode('utf-8')}" />
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
     if choice == "ホーム":
         st.subheader("ホーム画面です")
 
@@ -68,10 +96,8 @@ def main():
 
             result = login_user(username, hashed_pswd)
             if result:
+                st.session_state.username = username  # セッションにユーザー名を保存
                 st.success("{}さんでログインしました".format(username))
-                icon = get_user_icon(username)
-                if icon:
-                    st.image(icon, width=100)  # アイコンを表示
             else:
                 st.warning("ユーザー名かパスワードが間違っています")
 
