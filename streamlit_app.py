@@ -1,62 +1,64 @@
 import streamlit as st
+import pandas as pd
+import sqlite3 
+import hashlib
+conn = sqlite3.connect('database.db')
+c = conn.cursor()
+import hashlib
+def make_hashes(password):
+	return hashlib.sha256(str.encode(password)).hexdigest()
 
-# ユーザー名とパスワードの設定
-USER_CREDENTIALS = {}
+def check_hashes(password,hashed_text):
+	if make_hashes(password) == hashed_text:
+		return hashed_text
+	return False
+def create_user():
+	c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT,password TEXT)')
 
-# ログインセッションを管理するためのセッション状態
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
+def add_user(username,password):
+	c.execute('INSERT INTO userstable(username,password) VALUES (?,?)',(username,password))
+	conn.commit()
 
-# ログインフォーム
-def login():
-    st.title("ログイン")
+def login_user(username,password):
+	c.execute('SELECT * FROM userstable WHERE username =? AND password = ?',(username,password))
+	data = c.fetchall()
+	return data
+def main():
 
-    username = st.text_input("ユーザー名")
-    password = st.text_input("パスワード", type='password')
+	st.title("ログイン機能テスト")
 
-    if st.button("ログイン"):
-        if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.success("ログイン成功！")
-        else:
-            st.error("ユーザー名またはパスワードが正しくありません。")
+	menu = ["ホーム","ログイン","サインアップ"]
+	choice = st.sidebar.selectbox("メニュー",menu)
 
-# サインアップフォーム
-def signup():
-    st.title("サインアップ")
+	if choice == "ホーム":
+		st.subheader("ホーム画面です")
 
-    username = st.text_input("ユーザー名")
-    password = st.text_input("パスワード", type='password')
-    confirm_password = st.text_input("パスワードを確認", type='password')
+	elif choice == "ログイン":
+		st.subheader("ログイン画面です")
 
-    if st.button("サインアップ"):
-        if username in USER_CREDENTIALS:
-            st.error("このユーザー名は既に使用されています。")
-        elif password != confirm_password:
-            st.error("パスワードが一致しません。")
-        else:
-            USER_CREDENTIALS[username] = password
-            st.success("サインアップ成功！ログインしてください。")
+		username = st.sidebar.text_input("ユーザー名を入力してください")
+		password = st.sidebar.text_input("パスワードを入力してください",type='password')
+		if st.sidebar.checkbox("ログイン"):
+			create_user()
+			hashed_pswd = make_hashes(password)
 
-# メインアプリ
-if not st.session_state.logged_in:
-    option = st.selectbox("ログインまたはサインアップを選択してください", ["ログイン", "サインアップ"])
-    
-    if option == "ログイン":
-        login()
-    else:
-        signup()
-else:
-    # ログイン後の画面
-    st.title(f"ようこそ、{st.session_state.username}さん！")
+			result = login_user(username,check_hashes(password,hashed_pswd))
+			if result:
 
-    # アイコンの表示
-    icon_url = "https://example.com/path/to/your/icon.png"  # アイコンのURLを指定
-    st.image(icon_url, width=100)  # アイコンを表示
-    st.write("ここにアプリのコンテンツを追加します。")
+				st.success("{}さんでログインしました".format(username))
 
-    if st.button("ログアウト"):
-        st.session_state.logged_in = False
-        st.session_state.username = ""
-        st.success("ログアウトしました。")
+			else:
+				st.warning("ユーザー名かパスワードが間違っています")
+
+	elif choice == "サインアップ":
+		st.subheader("新しいアカウントを作成します")
+		new_user = st.text_input("ユーザー名を入力してください")
+		new_password = st.text_input("パスワードを入力してください",type='password')
+
+		if st.button("サインアップ"):
+			create_user()
+			add_user(new_user,make_hashes(new_password))
+			st.success("アカウントの作成に成功しました")
+			st.info("ログイン画面からログインしてください")
+if __name__ == '__main__':
+	main()
