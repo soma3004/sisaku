@@ -1,7 +1,7 @@
-import cv2
-import mediapipe as mp
 import streamlit as st
+import mediapipe as mp
 import numpy as np
+from PIL import Image
 
 # MediaPipe の準備
 mp_pose = mp.solutions.pose
@@ -11,19 +11,15 @@ mp_drawing = mp.solutions.drawing_utils
 # StreamlitのWebカメラ入力
 st.title("リアルタイム骨格検出")
 
-# Streamlit での画像表示
-image_placeholder = st.empty()
+# Streamlitのカメラ入力
+camera_input = st.camera_input("カメラ映像を使用", key="camera")
 
-# Webカメラからの映像キャプチャ
-cap = cv2.VideoCapture(0)
+if camera_input is not None:
+    # PIL形式の画像をNumPy配列に変換
+    image = Image.open(camera_input)
+    frame = np.array(image)
 
-while True:
-    # カメラからフレームを読み取る
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    # BGR画像からRGB画像に変換
+    # BGRからRGBに変換（MediaPipeはRGBを期待している）
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # MediaPipeでポーズ検出
@@ -33,14 +29,6 @@ while True:
     if results.pose_landmarks:
         mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-    # OpenCVの画像をStreamlitに表示
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image_placeholder.image(frame, channels="RGB", use_column_width=True)
-
-    # 'q'キーを押すと終了
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# カメラのキャプチャを解放
-cap.release()
-cv2.destroyAllWindows()
+    # 結果画像をStreamlitに表示
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # 再度RGBに変換
+    st.image(frame, channels="RGB", use_column_width=True)
