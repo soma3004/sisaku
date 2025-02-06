@@ -15,14 +15,12 @@ st.title("リアルタイム骨格検出")
 camera_input = st.camera_input("カメラ映像を使用", key="camera")
 
 if camera_input is not None:
-    # 画像をPILからNumPy配列に変換
+    # PIL形式の画像をNumPy配列に変換
     image = Image.open(camera_input)
     frame = np.array(image)
 
     # MediaPipeでポーズ検出
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    results = pose.process(rgb_frame)
+    results = pose.process(frame)
 
     # 骨格を描画
     if results.pose_landmarks:
