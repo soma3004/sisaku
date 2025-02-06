@@ -2,6 +2,7 @@ import streamlit as st
 import mediapipe as mp
 import numpy as np
 from PIL import Image
+import cv2
 
 # MediaPipe の準備
 mp_pose = mp.solutions.pose
@@ -15,9 +16,8 @@ st.title("リアルタイム骨格検出")
 camera_input = st.camera_input("カメラ映像を使用", key="camera")
 
 if camera_input is not None:
-    # PIL形式の画像をNumPy配列に変換
-    image = Image.open(camera_input)
-    frame = np.array(image)
+    # カメラ映像のフレームを取得
+    frame = np.array(camera_input)
 
     # MediaPipeでポーズ検出
     results = pose.process(frame)
