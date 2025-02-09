@@ -8,18 +8,16 @@ import pandas as pd
 # Mediapipeのモジュールを初期化
 mp_pose = mp.solutions.pose
 mp_hands = mp.solutions.hands
-mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
 
 # Mediapipeのインスタンス
 pose = mp_pose.Pose()
 hands = mp_hands.Hands()
-face_mesh = mp_face_mesh.FaceMesh()
 
-# **サイドバーでモード選択**
-mode = st.sidebar.radio("🔍 検出モードを選択", ["体の関節のみ", "手の関節のみ", "表情のみ", "すべて"])
+# **サイドバーでモード選択（表情検出なし）**
+mode = st.sidebar.radio("🔍 検出モードを選択", ["体の関節のみ", "手の関節のみ", "すべて"])
 
-# **体の関節のみのリスト（顔は除外）**
+# **体の関節のみのリスト（顔の検出なし）**
 BODY_LANDMARKS = [
     mp_pose.PoseLandmark.LEFT_SHOULDER,
     mp_pose.PoseLandmark.RIGHT_SHOULDER,
@@ -35,7 +33,7 @@ BODY_LANDMARKS = [
     mp_pose.PoseLandmark.RIGHT_ANKLE
 ]
 
-st.title("📌 Pose, Hand, and Face Detection")
+st.title("📌 Pose & Hand Detection (No Face)")
 
 # カメラ画像を取得
 img_file = st.camera_input("📷 Take a picture")
@@ -51,7 +49,6 @@ if img_file is not None:
     # Mediapipeで処理
     results_pose = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)) if mode in ["体の関節のみ", "すべて"] else None
     results_hands = hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)) if mode in ["手の関節のみ", "すべて"] else None
-    results_face = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)) if mode in ["表情のみ", "すべて"] else None
 
     # 座標データを格納するリスト
     landmarks_list = []
@@ -77,17 +74,6 @@ if img_file is not None:
 
             # 手の関節ラインを描画
             mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-
-    # **顔のランドマークを描画**
-    if results_face and results_face.multi_face_landmarks:
-        for face_landmarks in results_face.multi_face_landmarks:
-            for idx, landmark in enumerate(face_landmarks.landmark):
-                x, y = int(landmark.x * frame.shape[1]), int(landmark.y * frame.shape[0])
-                cv2.circle(frame, (x, y), 1, (0, 0, 255), -1)  # **赤色, 1px**
-                landmarks_list.append({"Type": "Face", "Point": f"Face_{idx}", "X": x, "Y": y})
-
-            # 顔のランドマークラインを描画
-            mp_drawing.draw_landmarks(frame, face_landmarks, mp_face_mesh.FACEMESH_TESSELATION)
 
     # **Streamlitで画像を表示**
     st.image(frame, channels="BGR", use_column_width=True)
