@@ -1,30 +1,36 @@
 import streamlit as st
 import mediapipe as mp
 import numpy as np
+import cv2
 from PIL import Image
 
-# MediaPipe の準備
+# Mediapipeのポーズ推定を初期化
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
-mp_drawing = mp.solutions.drawing_utils
 
-# StreamlitのWebカメラ入力
-st.title("リアルタイム骨格検出")
+st.title("Pose Detection with Streamlit")
 
-# Streamlitのカメラ入力
-camera_input = st.camera_input("カメラ映像を使用", key="camera")
+# カメラ画像を取得
+img_file = st.camera_input("Take a picture")
 
-if camera_input is not None:
-    # PIL形式の画像をNumPy配列に変換
-    image = Image.open(camera_input)
+if img_file is not None:
+    # 画像をPILからOpenCVの形式に変換
+    image = Image.open(img_file)
     frame = np.array(image)
+    
+    # OpenCVはBGR、StreamlitはRGBを扱うため変換
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-    # MediaPipeでポーズ検出
-    results = pose.process(frame)
+    # Mediapipeでポーズ推定
+    results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
-    # 骨格を描画
+    # 骨格点を描画
     if results.pose_landmarks:
-        mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+        for landmark in results.pose_landmarks.landmark:
+            x = int(landmark.x * frame.shape[1])
+            y = int(landmark.y * frame.shape[0])
+            cv2.putText(frame, f"({x}, {y})", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
-    # 結果画像をStreamlitに表示
-    st.image(frame, channels="RGB", use_column_width=True)
+    # Streamlitで結果を表示
+    st.image(frame, channels="BGR", use_column_width=True)
