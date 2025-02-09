@@ -22,35 +22,40 @@ st.title("📌 骨格検出アプリ")
 # **リアルタイム検出モード**
 if main_mode == "リアルタイム検出":
     st.subheader("🎥 リアルタイムで骨格を検出中...")
+    
     cap = cv2.VideoCapture(0)
-    FRAME_WINDOW = st.image([])
+    
+    # **カメラの初期化確認**
+    if not cap.isOpened():
+        st.error("カメラを開けませんでした。")
+    else:
+        FRAME_WINDOW = st.empty()  # ストリーム表示用
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            st.error("カメラを開けませんでした。")
-            break
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                st.error("カメラ映像の取得に失敗しました。")
+                break
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # **Mediapipeで処理**
-        results_pose = pose.process(frame) if sub_mode in ["体の関節のみ", "すべて"] else None
-        results_hands = hands.process(frame) if sub_mode in ["手の関節のみ", "すべて"] else None
+            # **Mediapipeで処理**
+            results_pose = pose.process(frame) if sub_mode in ["体の関節のみ", "すべて"] else None
+            results_hands = hands.process(frame) if sub_mode in ["手の関節のみ", "すべて"] else None
 
-        # **体の関節を描画**
-        if results_pose and results_pose.pose_landmarks:
-            mp_drawing.draw_landmarks(frame, results_pose.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+            # **体の関節を描画**
+            if results_pose and results_pose.pose_landmarks:
+                mp_drawing.draw_landmarks(frame, results_pose.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-        # **手の関節を描画**
-        if results_hands and results_hands.multi_hand_landmarks:
-            for hand_landmarks in results_hands.multi_hand_landmarks:
-                mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            # **手の関節を描画**
+            if results_hands and results_hands.multi_hand_landmarks:
+                for hand_landmarks in results_hands.multi_hand_landmarks:
+                    mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-        # **映像を更新**
-        FRAME_WINDOW.image(frame)
+            # **映像を更新**
+            FRAME_WINDOW.image(frame, channels="RGB")
 
-    cap.release()
-    cv2.destroyAllWindows()
+        cap.release()
 
 # **写真から座標を検出するモード**
 else:
