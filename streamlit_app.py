@@ -61,7 +61,7 @@ if img_file is not None:
         for landmark_id in BODY_LANDMARKS:
             landmark = results_pose.pose_landmarks.landmark[landmark_id]
             x, y = int(landmark.x * frame.shape[1]), int(landmark.y * frame.shape[0])
-            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)  # 緑色で描画
+            cv2.circle(frame, (x, y), 3, (0, 255, 0), -1)  # **緑色, 3px**
             landmarks_list.append({"Type": "Body", "Point": landmark_id.name, "X": x, "Y": y})
 
         # 骨格ラインを描画
@@ -72,7 +72,7 @@ if img_file is not None:
         for hand_landmarks in results_hands.multi_hand_landmarks:
             for idx, landmark in enumerate(hand_landmarks.landmark):
                 x, y = int(landmark.x * frame.shape[1]), int(landmark.y * frame.shape[0])
-                cv2.circle(frame, (x, y), 5, (255, 0, 0), -1)  # 青色で描画
+                cv2.circle(frame, (x, y), 3, (255, 0, 0), -1)  # **青色, 3px**
                 landmarks_list.append({"Type": "Hand", "Point": f"Hand_{idx}", "X": x, "Y": y})
 
             # 手の関節ラインを描画
@@ -83,7 +83,7 @@ if img_file is not None:
         for face_landmarks in results_face.multi_face_landmarks:
             for idx, landmark in enumerate(face_landmarks.landmark):
                 x, y = int(landmark.x * frame.shape[1]), int(landmark.y * frame.shape[0])
-                cv2.circle(frame, (x, y), 2, (0, 0, 255), -1)  # 赤色で描画
+                cv2.circle(frame, (x, y), 1, (0, 0, 255), -1)  # **赤色, 1px**
                 landmarks_list.append({"Type": "Face", "Point": f"Face_{idx}", "X": x, "Y": y})
 
             # 顔のランドマークラインを描画
