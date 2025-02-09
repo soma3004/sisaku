@@ -16,8 +16,8 @@ pose = mp_pose.Pose()
 hands = mp_hands.Hands()
 face_mesh = mp_face_mesh.FaceMesh()
 
-# **モード選択**
-mode = st.radio("検出モードを選択", ["体の関節のみ", "手の関節のみ", "表情のみ", "すべて"])
+# **サイドバーでモード選択**
+mode = st.sidebar.radio("🔍 検出モードを選択", ["体の関節のみ", "手の関節のみ", "表情のみ", "すべて"])
 
 # **体の関節のみのリスト（顔は除外）**
 BODY_LANDMARKS = [
@@ -35,10 +35,10 @@ BODY_LANDMARKS = [
     mp_pose.PoseLandmark.RIGHT_ANKLE
 ]
 
-st.title("Pose, Hand, and Face Detection")
+st.title("📌 Pose, Hand, and Face Detection")
 
 # カメラ画像を取得
-img_file = st.camera_input("Take a picture")
+img_file = st.camera_input("📷 Take a picture")
 
 if img_file is not None:
     # 画像をPILからOpenCVの形式に変換
