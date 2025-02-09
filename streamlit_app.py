@@ -1,12 +1,11 @@
 import streamlit as st
-import numpy as np
 import cv2
-import av
 import mediapipe as mp
-from streamlit_webrtc 
-import webrtc_streamer, VideoProcessorBase
+import numpy as np
+import pandas as pd
+from PIL import Image
 
-# === Mediapipe セットアップ ===
+# Mediapipeのセットアップ
 mp_pose = mp.solutions.pose
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
@@ -14,72 +13,85 @@ mp_drawing = mp.solutions.drawing_utils
 pose = mp_pose.Pose()
 hands = mp_hands.Hands()
 
-# === サイドバーでモード選択 ===
-mode = st.sidebar.radio("📌 モード選択", ["リアルタイム検出 (PC)", "リアルタイム検出 (スマホ)", "写真から検出"])
-sub_mode = st.sidebar.radio("📌 検出対象", ["体の関節のみ", "手の関節のみ", "すべて"])
+# **サイドバーでモード選択**
+main_mode = st.sidebar.radio("🔍 検出モードを選択", ["リアルタイム検出", "写真から座標を検出"])
+sub_mode = st.sidebar.radio("📌 検出対象を選択", ["体の関節のみ", "手の関節のみ", "すべて"])
 
-st.title("📌 PC & スマホ対応 骨格検出アプリ")
+st.title("📌 骨格検出アプリ")
 
-# === リアルタイム検出 (スマホ & PC共通処理) ===
-def process_frame(img):
-    """Mediapipe で骨格・手の関節を検出"""
-    results_pose = pose.process(img) if sub_mode in ["体の関節のみ", "すべて"] else None
-    results_hands = hands.process(img) if sub_mode in ["手の関節のみ", "すべて"] else None
-
-    if results_pose and results_pose.pose_landmarks:
-        mp_drawing.draw_landmarks(img, results_pose.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-
-    if results_hands and results_hands.multi_hand_landmarks:
-        for hand_landmarks in results_hands.multi_hand_landmarks:
-            mp_drawing.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-
-    return img
-
-# === モード①: PCのWebカメラでリアルタイム検出 ===
-if mode == "リアルタイム検出 (PC)":
-    st.write("💻 PCのWebカメラを使用します")
-
+# **リアルタイム検出モード**
+if main_mode == "リアルタイム検出":
+    st.subheader("🎥 リアルタイムで骨格を検出中...")
+    
     cap = cv2.VideoCapture(0)
-
+    
+    # **カメラの初期化確認**
     if not cap.isOpened():
-        st.error("カメラを開けませんでした。別のアプリが使用していませんか？")
+        st.error("カメラを開けませんでした。")
     else:
-        stframe = st.empty()
-        while cap.isOpened():
+        FRAME_WINDOW = st.empty()  # ストリーム表示用
+
+        while True:
             ret, frame = cap.read()
             if not ret:
-                st.error("カメラから映像を取得できませんでした")
+                st.error("カメラ映像の取得に失敗しました。")
                 break
 
-            frame = process_frame(frame)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            stframe.image(frame, channels="RGB")
+
+            # **Mediapipeで処理**
+            results_pose = pose.process(frame) if sub_mode in ["体の関節のみ", "すべて"] else None
+            results_hands = hands.process(frame) if sub_mode in ["手の関節のみ", "すべて"] else None
+
+            # **体の関節を描画**
+            if results_pose and results_pose.pose_landmarks:
+                mp_drawing.draw_landmarks(frame, results_pose.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+
+            # **手の関節を描画**
+            if results_hands and results_hands.multi_hand_landmarks:
+                for hand_landmarks in results_hands.multi_hand_landmarks:
+                    mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+            # **映像を更新**
+            FRAME_WINDOW.image(frame, channels="RGB")
 
         cap.release()
 
-# === モード②: スマホのカメラでリアルタイム検出 ===
-elif mode == "リアルタイム検出 (スマホ)":
-    st.write("📱 スマホのカメラを使用します")
+# **写真から座標を検出するモード**
+else:
+    st.subheader("📸 写真を撮影 or アップロードしてください")
+    img_file = st.file_uploader("画像をアップロード", type=["jpg", "jpeg", "png"])
 
-    class VideoProcessor(VideoProcessorBase):
-        def recv(self, frame):
-            img = frame.to_ndarray(format="bgr24")
-            img = process_frame(img)
-            return av.VideoFrame.from_ndarray(img, format="bgr24")
+    if img_file is not None:
+        image = Image.open(img_file)
+        frame = np.array(image)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-    webrtc_streamer(key="example", video_processor_factory=VideoProcessor)
+        # **Mediapipeで処理**
+        results_pose = pose.process(frame) if sub_mode in ["体の関節のみ", "すべて"] else None
+        results_hands = hands.process(frame) if sub_mode in ["手の関節のみ", "すべて"] else None
 
-# === モード③: 画像をアップロードして骨格検出 ===
-elif mode == "写真から検出":
-    st.write("🖼 写真をアップロードして検出します")
+        landmarks_list = []
 
-    uploaded_file = st.file_uploader("画像を選択", type=["jpg", "png", "jpeg"])
-    
-    if uploaded_file:
-        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        img = cv2.imdecode(file_bytes, 1)
+        # **体の関節を描画**
+        if results_pose and results_pose.pose_landmarks:
+            for idx, landmark in enumerate(results_pose.pose_landmarks.landmark):
+                x, y = int(landmark.x * frame.shape[1]), int(landmark.y * frame.shape[0])
+                landmarks_list.append({"Type": "Body", "Point": f"Joint_{idx}", "X": x, "Y": y})
+            mp_drawing.draw_landmarks(frame, results_pose.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-        img = process_frame(img)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
-        st.image(img, channels="RGB", caption="検出結果")
+        # **手の関節を描画**
+        if results_hands and results_hands.multi_hand_landmarks:
+            for hand_landmarks in results_hands.multi_hand_landmarks:
+                for idx, landmark in enumerate(hand_landmarks.landmark):
+                    x, y = int(landmark.x * frame.shape[1]), int(landmark.y * frame.shape[0])
+                    landmarks_list.append({"Type": "Hand", "Point": f"Hand_{idx}", "X": x, "Y": y})
+                mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+        # **画像を表示**
+        st.image(frame, channels="BGR", use_column_width=True)
+
+        # **座標データを表で表示**
+        if landmarks_list:
+            df = pd.DataFrame(landmarks_list)
+            st.table(df)
