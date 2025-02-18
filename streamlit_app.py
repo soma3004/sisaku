@@ -47,10 +47,21 @@ st.title("骨格検出アプリ")
 # モード選択（リアルタイム と 画像アップロード）
 mode = st.sidebar.radio("モードを選択してください", ["リアルタイム", "画像アップロード"])
 
-# 表示モードの切替（座標の表示 / 角度の表示）
-display_mode = st.sidebar.radio("表示モードを選択してください", ["座標の表示", "角度の表示"])
+# メイン画面上のボタンで表示モードを切替（座標の表示 / 角度の表示）
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("座標の表示"):
+        st.session_state.display_mode = "座標の表示"
+with col2:
+    if st.button("角度の表示"):
+        st.session_state.display_mode = "角度の表示"
+        
+if "display_mode" not in st.session_state:
+    st.session_state.display_mode = None
 
-# セッションステートで、頂点とその他の点の情報を保持
+st.write(f"【現在の表示モード】: {st.session_state.display_mode if st.session_state.display_mode else '未選択'}")
+
+# セッションステートで、頂点とその他の点を保持
 if "vertex" not in st.session_state:
     st.session_state.vertex = None  # 頂点は1点のみ
 if "others" not in st.session_state:
@@ -95,7 +106,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     y_coords.append(abs_y)
                     text_coords.append(f"ID: {idx}<br>x: {abs_x}<br>y: {abs_y}")
                 
-                # Plotly でインタラクティブなグラフ（画像サイズ固定）
+                # Plotly によるインタラクティブなグラフ（画像サイズ固定）
                 fig = go.Figure()
                 fig.add_trace(go.Image(z=processed_frame))
                 fig.add_trace(go.Scatter(
@@ -115,34 +126,52 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 st.write("【画像上のポイントをクリックして選択してください】")
                 events = plotly_events(fig, click_event=True, hover_event=False)
                 
-                # 選択されたポイントを「頂点」として追加するボタン
-                if st.button("頂点として追加"):
-                    if events:
-                        clicked_point = events[0]
-                        pt_index = clicked_point.get("pointNumber")
-                        if pt_index is not None:
-                            st.session_state.vertex = pt_index
-                            st.success(f"頂点としてポイント {pt_index} を選択しました。")
-                    else:
-                        st.warning("クリックイベントが検出されませんでした。")
+                # ボタンで、クリックイベントから「頂点」または「その他の点」として追加
+                col3, col4 = st.columns(2)
+                with col3:
+                    if st.button("頂点として追加"):
+                        if events:
+                            clicked_point = events[0]
+                            pt_index = clicked_point.get("pointNumber")
+                            if pt_index is not None:
+                                st.session_state.vertex = pt_index
+                                st.success(f"頂点としてポイント {pt_index} を選択しました。")
+                        else:
+                            st.warning("クリックイベントが検出されませんでした。")
+                with col4:
+                    if st.button("その他の点として追加"):
+                        if events:
+                            clicked_point = events[0]
+                            pt_index = clicked_point.get("pointNumber")
+                            if pt_index is not None:
+                                if pt_index == st.session_state.vertex:
+                                    st.info(f"ポイント {pt_index} は既に頂点として選択されています。")
+                                elif pt_index not in st.session_state.others:
+                                    st.session_state.others.append(pt_index)
+                                    st.success(f"その他の点としてポイント {pt_index} を選択しました。")
+                                else:
+                                    st.info(f"ポイント {pt_index} は既にその他の点として選択されています。")
+                        else:
+                            st.warning("クリックイベントが検出されませんでした。")
                 
-                # 選択されたポイントを「その他の点」として追加するボタン
-                if st.button("その他の点として追加"):
-                    if events:
-                        clicked_point = events[0]
-                        pt_index = clicked_point.get("pointNumber")
-                        if pt_index is not None:
-                            if pt_index == st.session_state.vertex:
-                                st.info(f"ポイント {pt_index} は既に頂点として選択されています。")
-                            elif pt_index not in st.session_state.others:
-                                st.session_state.others.append(pt_index)
-                                st.success(f"その他の点としてポイント {pt_index} を選択しました。")
-                            else:
-                                st.info(f"ポイント {pt_index} は既にその他の点として選択されています。")
-                    else:
-                        st.warning("クリックイベントが検出されませんでした。")
+                # 取り消しボタンを追加
+                col5, col6 = st.columns(2)
+                with col5:
+                    if st.button("頂点の選択を取り消す"):
+                        if st.session_state.vertex is not None:
+                            st.session_state.vertex = None
+                            st.success("頂点の選択を取り消しました。")
+                        else:
+                            st.info("頂点は未選択です。")
+                with col6:
+                    if st.button("最後のその他の点の選択を取り消す"):
+                        if st.session_state.others:
+                            removed = st.session_state.others.pop()
+                            st.success(f"その他の点として選択したポイント {removed} の選択を取り消しました。")
+                        else:
+                            st.info("その他の点は未選択です。")
                 
-                # 現在選択されたポイントを表示
+                # 現在の選択状況を表示
                 st.write("【現在の選択状況】")
                 if st.session_state.vertex is not None:
                     st.write(f"頂点: ポイント {st.session_state.vertex}")
@@ -153,9 +182,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 else:
                     st.write("その他の点: 未選択")
                 
-                # 表示ボタンを押すと、モードに応じた情報を表示
+                # 表示ボタンで、選択された情報に応じた結果を表示
                 if st.button("表示"):
-                    if display_mode == "座標の表示":
+                    if st.session_state.display_mode == "座標の表示":
                         display_info = []
                         if st.session_state.vertex is not None:
                             display_info.append(landmark_info[st.session_state.vertex])
@@ -163,16 +192,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                             display_info.append(landmark_info[pt])
                         st.write("【選択されたポイントの座標】")
                         st.dataframe(display_info)
-                    elif display_mode == "角度の表示":
-                        # 角度計算は、頂点が選択され、かつその他の点から最低2点選択されている場合に行う
+                    elif st.session_state.display_mode == "角度の表示":
                         if st.session_state.vertex is None:
                             st.info("角度を計算するには、まず頂点を選択してください。")
                         elif len(st.session_state.others) < 2:
-                            st.info("角度を計算するには、頂点以外から2点以上を選択してください。")
+                            st.info("角度を計算するには、頂点以外から2点以上選択してください。")
                         else:
-                            # ここでは、その他の点のうち最初の2点を使用
-                            A = (landmark_info[st.session_state.others][0]["x (abs)"], landmark_info[st.session_state.others][0]["y (abs)"]) if isinstance(st.session_state.others, list) and len(st.session_state.others) > 0 else None
-                            # ※ 上記の記述はあくまで例です。より明示的に最初の2点を取得します。
+                            # ここでは、その他の点から最初の2点を使用して角度計算
                             pt1 = st.session_state.others[0]
                             pt2 = st.session_state.others[1]
                             A = (landmark_info[pt1]["x (abs)"], landmark_info[pt1]["y (abs)"])
