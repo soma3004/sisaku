@@ -72,7 +72,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             image = Image.open(camera_input).convert("RGB")
             frame = np.array(image)
             processed_frame, _ = process_frame(frame.copy(), pose)
-            st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果 (リアルタイム)")
+            st.image(processed_frame, channels="RGB", use_container_width=True, caption="骨格検出結果 (リアルタイム)")
     elif mode == "画像アップロード":
         uploaded_file = st.file_uploader("画像をアップロード", type=["jpg", "jpeg", "png"])
         if uploaded_file is not None:
@@ -112,7 +112,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 # 左：縮小画像、右：散布図 を st.columns で並べる
                 col_img, col_plot = st.columns(2)
                 with col_img:
-                    st.image(small_image, caption="縮小画像（約4分の1サイズ）", use_column_width=True)
+                    st.image(small_image, caption="縮小画像（約4分の1サイズ）", use_container_width=True)
                 with col_plot:
                     fig = go.Figure()
                     fig.add_trace(go.Image(z=processed_frame))
@@ -219,3 +219,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                                 st.error("角度を計算できませんでした。")
             else:
                 st.write("関節が検出されませんでした。")
+
+
+
+
+
+use_column_width
