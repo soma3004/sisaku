@@ -48,11 +48,11 @@ st.title("骨格検出アプリ")
 mode = st.sidebar.radio("モードを選択してください", ["リアルタイム", "画像アップロード"])
 
 # メイン画面上のボタンで表示モードを切替（座標の表示 / 角度の表示）
-col1, col2 = st.columns(2)
-with col1:
+col_mode1, col_mode2 = st.columns(2)
+with col_mode1:
     if st.button("座標の表示"):
         st.session_state.display_mode = "座標の表示"
-with col2:
+with col_mode2:
     if st.button("角度の表示"):
         st.session_state.display_mode = "角度の表示"
 if "display_mode" not in st.session_state:
@@ -72,25 +72,28 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             image = Image.open(camera_input).convert("RGB")
             frame = np.array(image)
             processed_frame, _ = process_frame(frame.copy(), pose)
-            st.image(processed_frame, channels="RGB", use_container_width =True, caption="骨格検出結果 (リアルタイム)")
+            st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果 (リアルタイム)")
     elif mode == "画像アップロード":
         uploaded_file = st.file_uploader("画像をアップロード", type=["jpg", "jpeg", "png"])
         if uploaded_file is not None:
+            # PIL で画像を読み込み
             image = Image.open(uploaded_file).convert("RGB")
+            # 画像のオリジナルサイズ (width, height)
+            orig_w, orig_h = image.size
+            # NumPy 配列に変換
             frame = np.array(image)
             processed_frame, results = process_frame(frame.copy(), pose)
-            # 全画面表示の processed_frame は表示せず、縮小画像と散布図のみを表示
+            # ※ ここでは processed_frame の全画面表示は行わない
             
             if results.pose_landmarks:
-                h, w, _ = frame.shape
-                # 全てのランドマーク情報の作成
+                # 全てのランドマーク情報を作成
                 landmark_info = []
                 x_coords = []
                 y_coords = []
                 text_coords = []
                 for idx, landmark in enumerate(results.pose_landmarks.landmark):
-                    abs_x = int(landmark.x * w)
-                    abs_y = int(landmark.y * h)
+                    abs_x = int(landmark.x * orig_w)
+                    abs_y = int(landmark.y * orig_h)
                     landmark_info.append({
                         "Landmark": idx,
                         "x (normalized)": round(landmark.x, 3),
@@ -104,38 +107,37 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     y_coords.append(abs_y)
                     text_coords.append(f"ID: {idx}<br>x: {abs_x}<br>y: {abs_y}")
                 
-                # 画像縮小：元画像サイズの約4分の1（各辺半分）
-                orig_w, orig_h = image.size  # PIL形式は (width, height)
-                new_size = (orig_w // 2, orig_h // 2)
-                small_image = image.resize(new_size)
+                # Plotly 用の散布図は、元画像サイズに合わせたレイアウトに設定
+                fig = go.Figure()
+                fig.add_trace(go.Image(z=processed_frame))
+                fig.add_trace(go.Scatter(
+                    x=x_coords,
+                    y=y_coords,
+                    mode="markers",
+                    marker=dict(color="blue", size=6),
+                    text=text_coords,
+                    hoverinfo="text"
+                ))
+                fig.update_layout(
+                    width=orig_w,
+                    height=orig_h,
+                    xaxis=dict(fixedrange=True, range=[0, orig_w]),
+                    yaxis=dict(fixedrange=True, autorange='reversed', range=[0, orig_h]),
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    dragmode=False
+                )
                 
-                # 左：縮小画像、右：散布図 を st.columns で並べる
+                # 左右カラムに分割して表示（左：アップロード画像、右：散布図）
                 col_img, col_plot = st.columns(2)
                 with col_img:
-                    st.image(small_image, caption="縮小画像（約4分の1サイズ）", use_container_width =True)
+                    st.image(image, caption="アップロード画像（オリジナルサイズ）", width=orig_w)
                 with col_plot:
-                    fig = go.Figure()
-                    fig.add_trace(go.Image(z=processed_frame))
-                    fig.add_trace(go.Scatter(
-                        x=x_coords,
-                        y=y_coords,
-                        mode="markers",
-                        marker=dict(color="blue", size=6),
-                        text=text_coords,
-                        hoverinfo="text"
-                    ))
-                    fig.update_layout(
-                        xaxis=dict(fixedrange=True, range=[0, w]),
-                        yaxis=dict(fixedrange=True, autorange='reversed', range=[0, h]),
-                        margin=dict(l=0, r=0, t=0, b=0),
-                        dragmode=False
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=False)
                 
                 st.write("【画像上のポイントをクリックして選択してください】")
                 events = plotly_events(fig, click_event=True, hover_event=False)
                 
-                # ポイント追加ボタン
+                # ボタンで、クリックイベントから「頂点」または「その他の点」として追加
                 col3, col4 = st.columns(2)
                 with col3:
                     if st.button("頂点として追加"):
@@ -191,7 +193,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 else:
                     st.write("その他の点: 未選択")
                 
-                # 表示ボタンによる結果表示
+                # 表示ボタンで、選択された情報に応じた結果を表示
                 if st.button("表示"):
                     if st.session_state.display_mode == "座標の表示":
                         display_info = []
@@ -219,5 +221,3 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                                 st.error("角度を計算できませんでした。")
             else:
                 st.write("関節が検出されませんでした。")
-
-
