@@ -46,7 +46,7 @@ def compute_angle(A, B, C):
 
 st.title("骨格検出アプリ")
 
-# モードの切り替え（リアルタイムと画像アップロード）
+# モードの切り替え（リアルタイム と 画像アップロード）
 mode = st.sidebar.radio("モードを選択してください", ["リアルタイム", "画像アップロード"])
 
 # 表示モードの切り替え（座標の表示 / 角度の表示）
@@ -115,7 +115,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 st.write("【画像上のポイントをクリックして選択してください】")
                 events = plotly_events(fig, click_event=True, hover_event=False)
                 
-                # 選択ボタンを押すと、直近のクリックイベントからポイントを追加
+                # 選択ボタンでクリックイベントからポイントを追加
                 if st.button("選択を追加"):
                     if events:
                         clicked_point = events[0]
@@ -139,21 +139,25 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     # 選択されたポイントのインデックスを取得
                     selected_indices = [int(s.split()[1]) for s in selected_choice]
                     if display_mode == "座標の表示":
-                        # 座標情報のテーブルを表示
                         display_info = [landmark_info[i] for i in selected_indices]
                         st.write("【選択されたポイントの座標】")
                         st.dataframe(display_info)
                     elif display_mode == "角度の表示":
                         if len(selected_indices) == 3:
-                            A = (landmark_info[selected_indices[0]]["x (abs)"], landmark_info[selected_indices[0]]["y (abs)"])
-                            B = (landmark_info[selected_indices[1]]["x (abs)"], landmark_info[selected_indices[1]]["y (abs)"])
-                            C = (landmark_info[selected_indices[2]]["x (abs)"], landmark_info[selected_indices[2]]["y (abs)"])
+                            # ユーザーに頂点を選択してもらう
+                            vertex = st.selectbox("頂点を選択してください", options=selected_indices, format_func=lambda x: f"ポイント {x}")
+                            # 残りの2点を取得
+                            other_points = [pt for pt in selected_indices if pt != vertex]
+                            # 座標を取得
+                            A = (landmark_info[other_points[0]]["x (abs)"], landmark_info[other_points[0]]["y (abs)"])
+                            B = (landmark_info[vertex]["x (abs)"], landmark_info[vertex]["y (abs)"])
+                            C = (landmark_info[other_points[1]]["x (abs)"], landmark_info[other_points[1]]["y (abs)"])
                             angle = compute_angle(A, B, C)
                             if angle is not None:
-                                st.success(f"頂点（ポイント {selected_indices[1]}）での角度: {angle:.2f}°")
+                                st.success(f"頂点（ポイント {vertex}）での角度: {angle:.2f}°")
                             else:
                                 st.error("角度を計算できませんでした。")
                         else:
-                            st.info("角度を計算するには、3つのポイントを選択してください。")
+                            st.info("角度を計算するには、ちょうど3つのポイントを選択してください。")
             else:
                 st.write("関節が検出されませんでした。")
