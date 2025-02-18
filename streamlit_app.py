@@ -18,8 +18,10 @@ def process_frame(frame, pose):
             frame,
             results.pose_landmarks,
             mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=3),
-            connection_drawing_spec=mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2)
+            # ポイント（ランドマーク）の色を青色に指定 (R, G, B)
+            landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=3),
+            # ポイントをつなぐ線の色を黒色に指定
+            connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=2)
         )
     return frame, results
 
@@ -33,12 +35,10 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         # カメラ入力
         camera_input = st.camera_input("カメラ映像を使用", key="camera")
         if camera_input is not None:
-            # PIL画像をRGBに変換してNumPy配列に変換
             image = Image.open(camera_input).convert("RGB")
             frame = np.array(image)
             
             processed_frame, _ = process_frame(frame.copy(), pose)
-            
             st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果")
     
     elif mode == "画像アップロード":
@@ -49,7 +49,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             frame = np.array(image)
             
             processed_frame, results = process_frame(frame.copy(), pose)
-            
             st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果")
             
             # 関節の座標を表示
@@ -57,7 +56,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 landmark_coords = []
                 h, w, _ = frame.shape  # 画像の高さ、幅を取得
                 for idx, landmark in enumerate(results.pose_landmarks.landmark):
-                    # 正規化された座標 (0〜1) から絶対座標に変換
                     abs_x = int(landmark.x * w)
                     abs_y = int(landmark.y * h)
                     landmark_coords.append({
