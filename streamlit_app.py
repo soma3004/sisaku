@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 import plotly.graph_objects as go
 from streamlit_plotly_events import plotly_events
+import math
 
 # MediaPipe の準備
 mp_pose = mp.solutions.pose
@@ -27,9 +28,26 @@ def process_frame(frame, pose):
         )
     return frame, results
 
+def compute_angle(A, B, C):
+    """
+    3点 A, B, C が与えられた場合、B を頂点としたときの角度（度）を計算する。
+    A, B, C は (x, y) のタプル。
+    """
+    BA = (A[0] - B[0], A[1] - B[1])
+    BC = (C[0] - B[0], C[1] - B[1])
+    dot_product = BA[0] * BC[0] + BA[1] * BC[1]
+    norm_BA = math.sqrt(BA[0] ** 2 + BA[1] ** 2)
+    norm_BC = math.sqrt(BC[0] ** 2 + BC[1] ** 2)
+    # ゼロ除算対策
+    if norm_BA * norm_BC == 0:
+        return None
+    angle_rad = math.acos(dot_product / (norm_BA * norm_BC))
+    angle_deg = math.degrees(angle_rad)
+    return angle_deg
+
 st.title("骨格検出アプリ")
 
-# モードの切り替え（今回は画像アップロードモードのみで実装）
+# モードの切り替え（今回は画像アップロードモードのみ実装）
 mode = st.sidebar.radio("モードを選択してください", ["リアルタイム", "画像アップロード"])
 
 # セッションステートに選択済みポイントのリストを保持
@@ -75,11 +93,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     y_coords.append(abs_y)
                     text_coords.append(f"ID: {idx}<br>x: {abs_x}<br>y: {abs_y}")
                 
-                # Plotly でインタラクティブなグラフを作成
+                # Plotly でインタラクティブなグラフを作成（画像サイズに固定）
                 fig = go.Figure()
-                # 背景画像として processed_frame を追加
                 fig.add_trace(go.Image(z=processed_frame))
-                # 散布図を追加
                 fig.add_trace(go.Scatter(
                     x=x_coords,
                     y=y_coords,
@@ -88,22 +104,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     text=text_coords,
                     hoverinfo="text"
                 ))
-                # 画像サイズに合わせた固定の軸レンジを設定し、ドラッグやズームを無効にする
                 fig.update_layout(
-                    xaxis=dict(
-                        fixedrange=True,
-                        range=[0, w]
-                    ),
-                    yaxis=dict(
-                        fixedrange=True,
-                        autorange='reversed',
-                        range=[0, h]
-                    ),
+                    xaxis=dict(fixedrange=True, range=[0, w]),
+                    yaxis=dict(fixedrange=True, autorange='reversed', range=[0, h]),
                     margin=dict(l=0, r=0, t=0, b=0),
                     dragmode=False
                 )
-                st.write("【ポイントをクリックして選択してください】")
-                # plotly_events でクリックイベントを取得
+                st.write("【画像上のポイントをクリックして選択してください】")
                 events = plotly_events(fig, click_event=True, hover_event=False)
                 
                 # 選択ボタンを押すと、直近のクリックイベントからポイントを追加
@@ -131,5 +138,19 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     display_info = [landmark_info[i] for i in selected_indices]
                     st.write("【選択されたポイントの座標】")
                     st.dataframe(display_info)
+                    
+                    # もし選択されたポイントがちょうど3つなら角度を計算（中央のポイントを頂点とする）
+                    if len(selected_indices) == 3:
+                        # 選択順にそのまま使い、2番目のポイントを頂点とする
+                        A = (landmark_info[selected_indices[0]]["x (abs)"], landmark_info[selected_indices[0]]["y (abs)"])
+                        B = (landmark_info[selected_indices[1]]["x (abs)"], landmark_info[selected_indices[1]]["y (abs)"])
+                        C = (landmark_info[selected_indices[2]]["x (abs)"], landmark_info[selected_indices[2]]["y (abs)"])
+                        angle = compute_angle(A, B, C)
+                        if angle is not None:
+                            st.success(f"頂点（ポイント {selected_indices[1]}）での角度: {angle:.2f}°")
+                        else:
+                            st.error("角度を計算できませんでした。")
+                    else:
+                        st.info("角度を計算するには、3つのポイントを選択してください。")
             else:
                 st.write("関節が検出されませんでした。")
