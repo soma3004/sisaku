@@ -2,6 +2,7 @@ import streamlit as st
 import mediapipe as mp
 import numpy as np
 from PIL import Image
+import cv2
 
 # MediaPipeの準備
 mp_pose = mp.solutions.pose
