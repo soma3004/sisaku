@@ -19,8 +19,9 @@ def process_frame(frame, pose):
             frame,
             results.pose_landmarks,
             mp_pose.POSE_CONNECTIONS,
-            # すべてのポイントを描画（この描画は変更しなくてもよい）
+            # ランドマーク（ポイント）の色を青色、サイズを小さく設定
             landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
+            # ポイントをつなぐ線の色を黒、線を太く設定
             connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=4)
         )
     return frame, results
@@ -47,8 +48,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果 (アップロード画像)")
             
             if results.pose_landmarks:
-                # 表示するランドマークのインデックスを指定（例として主要なポイントのみ）
-                selected_indices = [0, 11, 12, 23, 24]
+                total_landmarks = len(results.pose_landmarks.landmark)
+                all_indices = list(range(total_landmarks))
+                # マルチセレクトウィジェットで、表示するランドマークのインデックスを選択
+                selected_indices = st.multiselect("表示するランドマークのインデックスを選択してください", 
+                                                  options=all_indices, 
+                                                  default=[0, 11, 12, 23, 24])
+                
                 landmark_coords = []
                 x_coords = []
                 y_coords = []
@@ -71,7 +77,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                         y_coords.append(abs_y)
                         text_coords.append(f"ID: {idx}<br>x: {abs_x}<br>y: {abs_y}")
                 
-                # Plotly によるインタラクティブな表示（選択したポイントのみを表示）
+                # Plotly によるインタラクティブ表示（ホバーで座標が表示される）
                 fig = go.Figure()
                 fig.add_trace(go.Image(z=processed_frame))
                 fig.add_trace(go.Scatter(
@@ -88,7 +94,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 )
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # テーブルは選択したポイントのみ表示
+                # テーブルとして座標情報を表示
                 st.write("選択した関節のポイントの座標:")
                 st.dataframe(landmark_coords)
             else:
