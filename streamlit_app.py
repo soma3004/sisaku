@@ -19,9 +19,8 @@ def process_frame(frame, pose):
             frame,
             results.pose_landmarks,
             mp_pose.POSE_CONNECTIONS,
-            # ランドマーク（ポイント）の色を青色、ポイントを小さく設定
+            # すべてのポイントを描画（この描画は変更しなくてもよい）
             landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
-            # ポイントをつなぐ線の色を黒、線を太く設定
             connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=4)
         )
     return frame, results
@@ -39,8 +38,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             frame = np.array(image)
             processed_frame, results = process_frame(frame.copy(), pose)
             st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果 (リアルタイム)")
-            # リアルタイムモードでは、ここではテーブル表示は省略しています。
-    
     elif mode == "画像アップロード":
         uploaded_file = st.file_uploader("画像をアップロード", type=["jpg", "jpeg", "png"])
         if uploaded_file is not None:
@@ -50,29 +47,31 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果 (アップロード画像)")
             
             if results.pose_landmarks:
-                # 座標情報のリストを作成
+                # 表示するランドマークのインデックスを指定（例として主要なポイントのみ）
+                selected_indices = [0, 11, 12, 23, 24]
                 landmark_coords = []
                 x_coords = []
                 y_coords = []
                 text_coords = []
                 h, w, _ = frame.shape
                 for idx, landmark in enumerate(results.pose_landmarks.landmark):
-                    abs_x = int(landmark.x * w)
-                    abs_y = int(landmark.y * h)
-                    landmark_coords.append({
-                        "Landmark": idx,
-                        "x (normalized)": round(landmark.x, 3),
-                        "y (normalized)": round(landmark.y, 3),
-                        "z (normalized)": round(landmark.z, 3),
-                        "x (abs)": abs_x,
-                        "y (abs)": abs_y,
-                        "visibility": round(landmark.visibility, 3)
-                    })
-                    x_coords.append(abs_x)
-                    y_coords.append(abs_y)
-                    text_coords.append(f"ID: {idx}<br>x: {abs_x}<br>y: {abs_y}")
+                    if idx in selected_indices:
+                        abs_x = int(landmark.x * w)
+                        abs_y = int(landmark.y * h)
+                        landmark_coords.append({
+                            "Landmark": idx,
+                            "x (normalized)": round(landmark.x, 3),
+                            "y (normalized)": round(landmark.y, 3),
+                            "z (normalized)": round(landmark.z, 3),
+                            "x (abs)": abs_x,
+                            "y (abs)": abs_y,
+                            "visibility": round(landmark.visibility, 3)
+                        })
+                        x_coords.append(abs_x)
+                        y_coords.append(abs_y)
+                        text_coords.append(f"ID: {idx}<br>x: {abs_x}<br>y: {abs_y}")
                 
-                # Plotly によるインタラクティブな表示（ホバーで座標が確認できる）
+                # Plotly によるインタラクティブな表示（選択したポイントのみを表示）
                 fig = go.Figure()
                 fig.add_trace(go.Image(z=processed_frame))
                 fig.add_trace(go.Scatter(
@@ -89,8 +88,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 )
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # テーブルはそのまま st.dataframe で表示
-                st.write("関節のポイントの座標:")
+                # テーブルは選択したポイントのみ表示
+                st.write("選択した関節のポイントの座標:")
                 st.dataframe(landmark_coords)
             else:
                 st.write("関節が検出されませんでした。")
