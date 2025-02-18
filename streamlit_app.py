@@ -38,7 +38,6 @@ def compute_angle(A, B, C):
     dot_product = BA[0] * BC[0] + BA[1] * BC[1]
     norm_BA = math.sqrt(BA[0] ** 2 + BA[1] ** 2)
     norm_BC = math.sqrt(BC[0] ** 2 + BC[1] ** 2)
-    # ゼロ除算対策
     if norm_BA * norm_BC == 0:
         return None
     angle_rad = math.acos(dot_product / (norm_BA * norm_BC))
@@ -47,8 +46,11 @@ def compute_angle(A, B, C):
 
 st.title("骨格検出アプリ")
 
-# モードの切り替え（今回は画像アップロードモードのみ実装）
+# モードの切り替え（リアルタイムと画像アップロード）
 mode = st.sidebar.radio("モードを選択してください", ["リアルタイム", "画像アップロード"])
+
+# 表示モードの切り替え（座標の表示 / 角度の表示）
+display_mode = st.sidebar.radio("表示モードを選択してください", ["座標の表示", "角度の表示"])
 
 # セッションステートに選択済みポイントのリストを保持
 if "selected_points" not in st.session_state:
@@ -72,7 +74,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             
             if results.pose_landmarks:
                 h, w, _ = frame.shape
-                # 全てのランドマークの絶対座標とテキスト情報を作成
+                # 全てのランドマークの情報を作成
                 landmark_info = []
                 x_coords = []
                 y_coords = []
@@ -127,30 +129,31 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     else:
                         st.warning("クリックイベントが検出されませんでした。")
                 
-                # 選択されたポイントをセレクトボックスに表示
+                # 選択されたポイントを表示
                 selected_str = [f"ポイント {pt}" for pt in st.session_state.selected_points]
                 st.write("【選択済みポイント】")
                 selected_choice = st.multiselect("選択済みポイント:", options=selected_str, default=selected_str)
                 
-                # 座標を表示するボタン
-                if st.button("座標を表示"):
+                # 表示ボタンを押すと、モードに応じた情報を表示
+                if st.button("表示"):
+                    # 選択されたポイントのインデックスを取得
                     selected_indices = [int(s.split()[1]) for s in selected_choice]
-                    display_info = [landmark_info[i] for i in selected_indices]
-                    st.write("【選択されたポイントの座標】")
-                    st.dataframe(display_info)
-                    
-                    # もし選択されたポイントがちょうど3つなら角度を計算（中央のポイントを頂点とする）
-                    if len(selected_indices) == 3:
-                        # 選択順にそのまま使い、2番目のポイントを頂点とする
-                        A = (landmark_info[selected_indices[0]]["x (abs)"], landmark_info[selected_indices[0]]["y (abs)"])
-                        B = (landmark_info[selected_indices[1]]["x (abs)"], landmark_info[selected_indices[1]]["y (abs)"])
-                        C = (landmark_info[selected_indices[2]]["x (abs)"], landmark_info[selected_indices[2]]["y (abs)"])
-                        angle = compute_angle(A, B, C)
-                        if angle is not None:
-                            st.success(f"頂点（ポイント {selected_indices[1]}）での角度: {angle:.2f}°")
+                    if display_mode == "座標の表示":
+                        # 座標情報のテーブルを表示
+                        display_info = [landmark_info[i] for i in selected_indices]
+                        st.write("【選択されたポイントの座標】")
+                        st.dataframe(display_info)
+                    elif display_mode == "角度の表示":
+                        if len(selected_indices) == 3:
+                            A = (landmark_info[selected_indices[0]]["x (abs)"], landmark_info[selected_indices[0]]["y (abs)"])
+                            B = (landmark_info[selected_indices[1]]["x (abs)"], landmark_info[selected_indices[1]]["y (abs)"])
+                            C = (landmark_info[selected_indices[2]]["x (abs)"], landmark_info[selected_indices[2]]["y (abs)"])
+                            angle = compute_angle(A, B, C)
+                            if angle is not None:
+                                st.success(f"頂点（ポイント {selected_indices[1]}）での角度: {angle:.2f}°")
+                            else:
+                                st.error("角度を計算できませんでした。")
                         else:
-                            st.error("角度を計算できませんでした。")
-                    else:
-                        st.info("角度を計算するには、3つのポイントを選択してください。")
+                            st.info("角度を計算するには、3つのポイントを選択してください。")
             else:
                 st.write("関節が検出されませんでした。")
