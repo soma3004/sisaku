@@ -38,7 +38,6 @@ if "selected_points" not in st.session_state:
 
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
     if mode == "リアルタイム":
-        # リアルタイムモードでは通常の画像表示のみ
         camera_input = st.camera_input("カメラ映像を使用", key="camera")
         if camera_input is not None:
             image = Image.open(camera_input).convert("RGB")
@@ -78,19 +77,30 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 
                 # Plotly でインタラクティブなグラフを作成
                 fig = go.Figure()
+                # 背景画像として processed_frame を追加
                 fig.add_trace(go.Image(z=processed_frame))
-                scatter = go.Scatter(
+                # 散布図を追加
+                fig.add_trace(go.Scatter(
                     x=x_coords,
                     y=y_coords,
                     mode="markers",
                     marker=dict(color="blue", size=6),
                     text=text_coords,
                     hoverinfo="text"
-                )
-                fig.add_trace(scatter)
+                ))
+                # 画像サイズに合わせた固定の軸レンジを設定し、ドラッグやズームを無効にする
                 fig.update_layout(
-                    yaxis=dict(autorange='reversed'),
-                    margin=dict(l=0, r=0, t=0, b=0)
+                    xaxis=dict(
+                        fixedrange=True,
+                        range=[0, w]
+                    ),
+                    yaxis=dict(
+                        fixedrange=True,
+                        autorange='reversed',
+                        range=[0, h]
+                    ),
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    dragmode=False
                 )
                 st.write("【ポイントをクリックして選択してください】")
                 # plotly_events でクリックイベントを取得
@@ -99,9 +109,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 # 選択ボタンを押すと、直近のクリックイベントからポイントを追加
                 if st.button("選択を追加"):
                     if events:
-                        # ここでは最初のイベントのみを採用（複数クリックした場合は工夫可能）
                         clicked_point = events[0]
-                        # clicked_point["pointNumber"] は scatter 内のインデックスと一致
                         pt_index = clicked_point.get("pointNumber")
                         if pt_index is not None:
                             if pt_index not in st.session_state.selected_points:
@@ -119,8 +127,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 
                 # 座標を表示するボタン
                 if st.button("座標を表示"):
-                    # フィルタ：選択ボックスで選ばれたポイントのインデックスを取得
-                    # 例: "ポイント 11" -> 11 と変換
                     selected_indices = [int(s.split()[1]) for s in selected_choice]
                     display_info = [landmark_info[i] for i in selected_indices]
                     st.write("【選択されたポイントの座標】")
