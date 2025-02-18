@@ -60,18 +60,16 @@ if "vertex" not in st.session_state:
 if "others" not in st.session_state:
     st.session_state.others = []
 
-# インスタンスの準備（Pose, Hands, Drawing）
+# インスタンス準備
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 mp_hands = mp.solutions.hands
 
-# 共通処理：画像（またはカメラ入力）の取得と左右表示用の散布図作成関数
+# 共通処理：画像（またはカメラ入力）の取得と左右表示用散布図作成
 def process_and_display(frame, orig_w, orig_h):
-    # detection_type に応じた検出
     if detection_type == "骨格検出":
         with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as detector:
             processed_frame, results = process_frame_pose(frame.copy(), detector)
-        # ランドマーク情報作成（Poseの場合）
         landmark_info = []
         x_coords, y_coords, text_coords = [], [], []
         if results.pose_landmarks:
@@ -92,9 +90,8 @@ def process_and_display(frame, orig_w, orig_h):
                 text_coords.append(f"Pose {idx}<br>x:{abs_x}<br>y:{abs_y}")
     else:
         with mp_hands.Hands(static_image_mode=False, max_num_hands=2,
-                             min_detection_confidence=0.5, min_tracking_confidence=0.5) as detector:
+                            min_detection_confidence=0.5, min_tracking_confidence=0.5) as detector:
             processed_frame, results = process_frame_hands(frame.copy(), detector)
-        # ランドマーク情報作成（Handsの場合）
         landmark_info = []
         x_coords, y_coords, text_coords = [], [], []
         if results.multi_hand_landmarks:
@@ -114,7 +111,6 @@ def process_and_display(frame, orig_w, orig_h):
                     x_coords.append(abs_x)
                     y_coords.append(abs_y)
                     text_coords.append(f"Hand {hand_idx}_{j}<br>x:{abs_x}<br>y:{abs_y}")
-    # 作成した processed_frame とランドマークデータを用いて散布図作成
     fig = go.Figure()
     fig.add_trace(go.Image(z=processed_frame))
     fig.add_trace(go.Scatter(
@@ -135,24 +131,29 @@ def process_and_display(frame, orig_w, orig_h):
     )
     return processed_frame, landmark_info, fig
 
-# メイン処理
+st.title("骨格・手検出アプリ")
+
 if mode == "画像アップロード":
     uploaded_file = st.file_uploader("画像をアップロード", type=["jpg", "jpeg", "png"])
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert("RGB")
         orig_w, orig_h = image.size
         frame = np.array(image)
-        # 画像と散布図を左右に表示
+        # オリジナル画像を約1/4サイズに縮小（各辺半分）
+        small_image = image.resize((orig_w // 2, orig_h // 2))
+        
+        # 画像と散布図を左右カラムに分割して表示（左右ともに同じサイズ＝オリジナル画像サイズ）
         col_img, col_plot = st.columns(2)
         with col_img:
-            st.image(image, caption="アップロード画像（オリジナルサイズ）", width=orig_w)
+            st.image(small_image, caption="縮小画像（約1/4サイズ）", use_column_width=True)
         with col_plot:
             processed_frame, landmark_info, fig = process_and_display(frame, orig_w, orig_h)
             st.plotly_chart(fig, use_container_width=False)
+        
         st.write("【画像上のポイントをクリックして選択してください】")
         events = plotly_events(fig, click_event=True, hover_event=False)
         
-        # ポイント追加ボタン
+        # ポイント追加ボタン（頂点 / その他の点）
         col3, col4 = st.columns(2)
         with col3:
             if st.button("頂点として追加"):
@@ -234,14 +235,12 @@ if mode == "画像アップロード":
                         st.success(f"頂点（ポイント {st.session_state.vertex}）での角度: {angle:.2f}°")
                     else:
                         st.error("角度を計算できませんでした。")
-                        
 elif mode == "リアルタイム":
     camera_input = st.camera_input("カメラ映像を使用", key="camera")
     if camera_input is not None:
         image = Image.open(camera_input).convert("RGB")
         orig_w, orig_h = image.size
         frame = np.array(image)
-        # 検出対象に応じた処理
         if detection_type == "骨格検出":
             with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as detector:
                 processed_frame, results = process_frame_pose(frame.copy(), detector)
@@ -286,7 +285,7 @@ elif mode == "リアルタイム":
                         x_coords.append(abs_x)
                         y_coords.append(abs_y)
                         text_coords.append(f"Hand {hand_idx}_{j}<br>x:{abs_x}<br>y:{abs_y}")
-        # 左右カラムに分割して表示（リアルタイムの場合もオリジナルサイズで表示）
+        # リアルタイムも左右カラムに分割して表示
         col_img, col_plot = st.columns(2)
         with col_img:
             st.image(image, caption="カメラ映像（オリジナルサイズ）", width=orig_w)
@@ -310,11 +309,9 @@ elif mode == "リアルタイム":
                 dragmode=False
             )
             st.plotly_chart(fig, use_container_width=False)
-        
         st.write("【画像上のポイントをクリックして選択してください】")
         events = plotly_events(fig, click_event=True, hover_event=False)
-        
-        # ポイント追加ボタン
+        # ポイント追加・取り消し・表示処理（リアルタイム）
         col3, col4 = st.columns(2)
         with col3:
             if st.button("頂点として追加 (リアルタイム)"):
@@ -341,8 +338,6 @@ elif mode == "リアルタイム":
                             st.info(f"ポイント {pt_index} は既にその他の点として選択されています。")
                 else:
                     st.warning("クリックイベントが検出されませんでした。")
-        
-        # 取り消しボタン
         col5, col6 = st.columns(2)
         with col5:
             if st.button("頂点の選択を取り消す (リアルタイム)"):
@@ -358,8 +353,6 @@ elif mode == "リアルタイム":
                     st.success(f"その他の点として選択したポイント {removed} の選択を取り消しました。")
                 else:
                     st.info("その他の点は未選択です。")
-        
-        # 現在の選択状況の表示
         st.write("【現在の選択状況】")
         if st.session_state.vertex is not None:
             st.write(f"頂点: ポイント {st.session_state.vertex}")
@@ -369,8 +362,6 @@ elif mode == "リアルタイム":
             st.write(f"その他の点: {['ポイント ' + str(pt) for pt in st.session_state.others]}")
         else:
             st.write("その他の点: 未選択")
-        
-        # 表示ボタン
         if st.button("表示 (リアルタイム)"):
             if display_mode == "座標の表示":
                 display_info = []
