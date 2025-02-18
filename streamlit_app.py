@@ -29,9 +29,14 @@ if mode == "カメラモード":
 
         # 骨格を描画
         if results.pose_landmarks:
+            # ランドマークの描画（青色、小さな円）
+            landmark_spec = mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2)
+            # 接続線の描画（黒色）
+            connection_spec = mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=2)
+            
+            # ランドマークと接続線の描画
             mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
-                                      landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=3),
-                                      connection_drawing_spec=mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2))
+                                      landmark_drawing_spec=landmark_spec, connection_drawing_spec=connection_spec)
 
         # 結果画像をStreamlitに表示
         st.image(frame, channels="RGB", caption="骨格検出結果", use_column_width=True)
@@ -52,9 +57,14 @@ elif mode == "画像アップロードモード":
 
         # 骨格を描画
         if results.pose_landmarks:
+            # ランドマークの描画（青色、小さな円）
+            landmark_spec = mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2)
+            # 接続線の描画（黒色）
+            connection_spec = mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=2)
+            
+            # ランドマークと接続線の描画
             mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
-                                      landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=3),
-                                      connection_drawing_spec=mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2))
+                                      landmark_drawing_spec=landmark_spec, connection_drawing_spec=connection_spec)
 
         # 結果画像をStreamlitに表示
         st.image(frame, channels="RGB", caption="骨格検出結果", use_column_width=True)
