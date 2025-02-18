@@ -18,10 +18,10 @@ def process_frame(frame, pose):
             frame,
             results.pose_landmarks,
             mp_pose.POSE_CONNECTIONS,
-            # ポイント（ランドマーク）の色を青色に指定 (R, G, B)
-            landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=3),
-            # ポイントをつなぐ線の色を黒色に指定
-            connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=2)
+            # ポイントの色を青色、サイズを小さく (circle_radius=2) 設定
+            landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
+            # 接続線の色を黒色、線を太く (thickness=4) 設定
+            connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=4)
         )
     return frame, results
 
@@ -37,7 +37,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         if camera_input is not None:
             image = Image.open(camera_input).convert("RGB")
             frame = np.array(image)
-            
             processed_frame, _ = process_frame(frame.copy(), pose)
             st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果")
     
@@ -47,7 +46,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         if uploaded_file is not None:
             image = Image.open(uploaded_file).convert("RGB")
             frame = np.array(image)
-            
             processed_frame, results = process_frame(frame.copy(), pose)
             st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果")
             
