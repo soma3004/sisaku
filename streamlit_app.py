@@ -8,23 +8,36 @@ import math
 
 # MediaPipe の準備
 mp_pose = mp.solutions.pose
+mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 
-def process_frame(frame, pose):
+def process_frame(frame, pose, hands):
     """
-    入力画像（NumPy配列）に対して MediaPipe のポーズ検出を行い、
-    骨格を描画した画像と検出結果を返す関数。
+    入力画像（NumPy配列）に対して Pose と Hands の検出を行い、
+    検出結果を画像に描画して返す関数。
     """
-    results = pose.process(frame)
-    if results.pose_landmarks:
+    results_pose = pose.process(frame)
+    results_hands = hands.process(frame)
+    # Pose の描画
+    if results_pose.pose_landmarks:
         mp_drawing.draw_landmarks(
             frame,
-            results.pose_landmarks,
+            results_pose.pose_landmarks,
             mp_pose.POSE_CONNECTIONS,
             landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
             connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=4)
         )
-    return frame, results
+    # Hands の描画
+    if results_hands.multi_hand_landmarks:
+        for hand_landmarks in results_hands.multi_hand_landmarks:
+            mp_drawing.draw_landmarks(
+                frame,
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS,
+                landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
+                connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=2)
+            )
+    return frame, (results_pose, results_hands)
 
 def compute_angle(A, B, C):
     """
@@ -42,7 +55,7 @@ def compute_angle(A, B, C):
     angle_deg = math.degrees(angle_rad)
     return angle_deg
 
-st.title("骨格検出アプリ")
+st.title("骨格・手検出アプリ")
 
 # モード選択（リアルタイム と 画像アップロード）
 mode = st.sidebar.radio("モードを選択してください", ["リアルタイム", "画像アップロード"])
@@ -65,55 +78,71 @@ if "vertex" not in st.session_state:
 if "others" not in st.session_state:
     st.session_state.others = []    # その他の点（リスト）
 
+# Pose と Hands のインスタンスを作成
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
-    if mode == "リアルタイム":
-        camera_input = st.camera_input("カメラ映像を使用", key="camera")
-        if camera_input is not None:
-            image = Image.open(camera_input).convert("RGB")
-            frame = np.array(image)
-            processed_frame, _ = process_frame(frame.copy(), pose)
-            st.image(processed_frame, channels="RGB", use_container_width=True, caption="骨格検出結果 (リアルタイム)")
-    elif mode == "画像アップロード":
-        uploaded_file = st.file_uploader("画像をアップロード", type=["jpg", "jpeg", "png"])
-        if uploaded_file is not None:
-            image = Image.open(uploaded_file).convert("RGB")
-            frame = np.array(image)
-            processed_frame, results = process_frame(frame.copy(), pose)
-            # 全画面表示の processed_frame は表示せず、縮小画像と散布図のみを表示
-            
-            if results.pose_landmarks:
-                h, w, _ = frame.shape
-                # 全てのランドマーク情報の作成
-                landmark_info = []
-                x_coords = []
-                y_coords = []
-                text_coords = []
-                for idx, landmark in enumerate(results.pose_landmarks.landmark):
-                    abs_x = int(landmark.x * w)
-                    abs_y = int(landmark.y * h)
-                    landmark_info.append({
-                        "Landmark": idx,
-                        "x (normalized)": round(landmark.x, 3),
-                        "y (normalized)": round(landmark.y, 3),
-                        "z (normalized)": round(landmark.z, 3),
-                        "x (abs)": abs_x,
-                        "y (abs)": abs_y,
-                        "visibility": round(landmark.visibility, 3)
-                    })
-                    x_coords.append(abs_x)
-                    y_coords.append(abs_y)
-                    text_coords.append(f"ID: {idx}<br>x: {abs_x}<br>y: {abs_y}")
-                
-                # 画像縮小：元画像サイズの約4分の1（各辺半分）
-                orig_w, orig_h = image.size  # PIL形式は (width, height)
-                new_size = (orig_w // 2, orig_h // 2)
-                small_image = image.resize(new_size)
-                
-                # 左：縮小画像、右：散布図 を st.columns で並べる
+    with mp_hands.Hands(static_image_mode=False, max_num_hands=2,
+                          min_detection_confidence=0.5, min_tracking_confidence=0.5) as hands:
+        if mode == "リアルタイム":
+            camera_input = st.camera_input("カメラ映像を使用", key="camera")
+            if camera_input is not None:
+                image = Image.open(camera_input).convert("RGB")
+                frame = np.array(image)
+                processed_frame, _ = process_frame(frame.copy(), pose, hands)
+                st.image(processed_frame, channels="RGB", use_container_width=True, caption="検出結果 (リアルタイム)")
+        elif mode == "画像アップロード":
+            uploaded_file = st.file_uploader("画像をアップロード", type=["jpg", "jpeg", "png"])
+            if uploaded_file is not None:
+                # 画像の読み込み（オリジナルサイズ）
+                image = Image.open(uploaded_file).convert("RGB")
+                orig_w, orig_h = image.size  # PIL のサイズは (width, height)
+                frame = np.array(image)
+                processed_frame, results = process_frame(frame.copy(), pose, hands)
+                # 表示は左右に分割：左にアップロード画像（オリジナルサイズ）、右に散布図
                 col_img, col_plot = st.columns(2)
                 with col_img:
-                    st.image(small_image, caption="縮小画像（約4分の1サイズ）", use_container_width=True)
+                    st.image(image, caption="アップロード画像（オリジナルサイズ）", width=orig_w)
                 with col_plot:
+                    # Pose と Hands のランドマークを両方まとめて散布図用データとして作成
+                    combined_info = []
+                    x_coords = []
+                    y_coords = []
+                    text_coords = []
+                    # Pose のランドマーク
+                    if results[0].pose_landmarks:
+                        for idx, landmark in enumerate(results[0].pose_landmarks.landmark):
+                            abs_x = int(landmark.x * orig_w)
+                            abs_y = int(landmark.y * orig_h)
+                            combined_info.append({
+                                "type": "pose",
+                                "id": idx,
+                                "x (abs)": abs_x,
+                                "y (abs)": abs_y,
+                                "x (normalized)": round(landmark.x, 3),
+                                "y (normalized)": round(landmark.y, 3),
+                                "visibility": round(landmark.visibility, 3)
+                            })
+                            x_coords.append(abs_x)
+                            y_coords.append(abs_y)
+                            text_coords.append(f"Pose {idx}<br>x:{abs_x}<br>y:{abs_y}")
+                    # Hands のランドマーク
+                    if results[1].multi_hand_landmarks:
+                        for hand_idx, hand_landmarks in enumerate(results[1].multi_hand_landmarks):
+                            for j, landmark in enumerate(hand_landmarks.landmark):
+                                abs_x = int(landmark.x * orig_w)
+                                abs_y = int(landmark.y * orig_h)
+                                combined_info.append({
+                                    "type": "hand",
+                                    "id": f"{hand_idx}_{j}",
+                                    "x (abs)": abs_x,
+                                    "y (abs)": abs_y,
+                                    "x (normalized)": round(landmark.x, 3),
+                                    "y (normalized)": round(landmark.y, 3),
+                                    "visibility": None  # Hands には visibility は含まれていない場合もある
+                                })
+                                x_coords.append(abs_x)
+                                y_coords.append(abs_y)
+                                text_coords.append(f"Hand {hand_idx}_{j}<br>x:{abs_x}<br>y:{abs_y}")
+                    
                     fig = go.Figure()
                     fig.add_trace(go.Image(z=processed_frame))
                     fig.add_trace(go.Scatter(
@@ -125,17 +154,19 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                         hoverinfo="text"
                     ))
                     fig.update_layout(
-                        xaxis=dict(fixedrange=True, range=[0, w]),
-                        yaxis=dict(fixedrange=True, autorange='reversed', range=[0, h]),
+                        width=orig_w,
+                        height=orig_h,
+                        xaxis=dict(fixedrange=True, range=[0, orig_w]),
+                        yaxis=dict(fixedrange=True, autorange='reversed', range=[0, orig_h]),
                         margin=dict(l=0, r=0, t=0, b=0),
                         dragmode=False
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=False)
                 
                 st.write("【画像上のポイントをクリックして選択してください】")
                 events = plotly_events(fig, click_event=True, hover_event=False)
                 
-                # ポイント追加ボタン
+                # ポイント追加ボタン（頂点 / その他の点）
                 col3, col4 = st.columns(2)
                 with col3:
                     if st.button("頂点として追加"):
@@ -196,9 +227,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     if st.session_state.display_mode == "座標の表示":
                         display_info = []
                         if st.session_state.vertex is not None:
-                            display_info.append(landmark_info[st.session_state.vertex])
+                            display_info.append(combined_info[st.session_state.vertex])
                         for pt in st.session_state.others:
-                            display_info.append(landmark_info[pt])
+                            display_info.append(combined_info[pt])
                         st.write("【選択されたポイントの座標】")
                         st.dataframe(display_info)
                     elif st.session_state.display_mode == "角度の表示":
@@ -209,9 +240,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                         else:
                             pt1 = st.session_state.others[0]
                             pt2 = st.session_state.others[1]
-                            A = (landmark_info[pt1]["x (abs)"], landmark_info[pt1]["y (abs)"])
-                            B = (landmark_info[st.session_state.vertex]["x (abs)"], landmark_info[st.session_state.vertex]["y (abs)"])
-                            C = (landmark_info[pt2]["x (abs)"], landmark_info[pt2]["y (abs)"])
+                            A = (combined_info[pt1]["x (abs)"], combined_info[pt1]["y (abs)"])
+                            B = (combined_info[st.session_state.vertex]["x (abs)"], combined_info[st.session_state.vertex]["y (abs)"])
+                            C = (combined_info[pt2]["x (abs)"], combined_info[pt2]["y (abs)"])
                             angle = compute_angle(A, B, C)
                             if angle is not None:
                                 st.success(f"頂点（ポイント {st.session_state.vertex}）での角度: {angle:.2f}°")
@@ -219,8 +250,3 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                                 st.error("角度を計算できませんでした。")
             else:
                 st.write("関節が検出されませんでした。")
-
-
-
-
-
