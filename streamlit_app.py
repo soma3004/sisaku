@@ -1,65 +1,60 @@
 import streamlit as st
 import mediapipe as mp
-import cv2
 import numpy as np
 from PIL import Image
 
-# MediaPipeの準備
+# MediaPipe の準備
 mp_pose = mp.solutions.pose
+pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)  # 信頼度の調整
 mp_drawing = mp.solutions.drawing_utils
 
-# Pose検出オブジェクトをコンテキストマネージャで初期化
-with mp_pose.Pose(
-    static_image_mode=False, 
-    min_detection_confidence=0.5, 
-    min_tracking_confidence=0.5
-) as pose:
+# Streamlitのサイドバーでモード選択
+st.title("骨格検出アプリ")
 
-    st.title("リアルタイム骨格検出")
+mode = st.sidebar.radio("モードを選択", ["カメラモード", "画像アップロードモード"])
 
-    # サイドバーでモード選択
-    mode = st.sidebar.radio("モードを選択", ["リアルタイム", "画像アップロード"])
+if mode == "カメラモード":
+    # カメラ入力
+    st.subheader("カメラ映像を使用")
+    camera_input = st.camera_input("カメラ映像を使用", key="camera")
 
-    def process_frame(frame):
-        """
-        入力のRGB画像（numpy配列）に対してMediaPipeのポーズ検出を実行し、
-        検出結果（骨格）を描画した画像を返す。
-        """
-        # 必要に応じて画像のチャネルが4(RGBA)の場合はRGBに変換
-        if frame.shape[-1] == 4:
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
-        
-        # 処理前に書き込み不可にしてパフォーマンス向上
-        frame.flags.writeable = False
+    if camera_input is not None:
+        # Webカメラの映像を処理
+        image = Image.open(camera_input)
+        frame = np.array(image)
+        st.image(frame, channels="RGB", caption="カメラ映像", use_column_width=True)
+
+        # MediaPipeでポーズ検出
         results = pose.process(frame)
-        frame.flags.writeable = True
-        
-        # 骨格が検出できた場合、描画する
+
+        # 骨格を描画
         if results.pose_landmarks:
-            mp_drawing.draw_landmarks(
-                frame,
-                results.pose_landmarks,
-                mp_pose.POSE_CONNECTIONS,
-                landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=5, circle_radius=2),
-                connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=2)
-            )
-        return frame
+            mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                                      landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=3),
+                                      connection_drawing_spec=mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2))
 
-    if mode == "リアルタイム":
-        # Webカメラからの入力（1枚のスナップショット）
-        camera_input = st.camera_input("カメラ映像を使用", key="camera")
-        if camera_input is not None:
-            image = Image.open(camera_input)
-            # PIL画像をRGBのnumpy配列に変換
-            frame = np.array(image.convert("RGB"))
-            processed_frame = process_frame(frame)
-            st.image(processed_frame, channels="RGB", caption="骨格検出結果", use_container_width=True)
+        # 結果画像をStreamlitに表示
+        st.image(frame, channels="RGB", caption="骨格検出結果", use_column_width=True)
 
-    elif mode == "画像アップロード":
-        # 画像アップロードの場合
-        uploaded_file = st.file_uploader("画像をアップロード", type=["jpg", "jpeg", "png"])
-        if uploaded_file is not None:
-            image = Image.open(uploaded_file)
-            frame = np.array(image.convert("RGB"))
-            processed_frame = process_frame(frame)
-            st.image(processed_frame, channels="RGB", caption="骨格検出結果", use_container_width=True)
+elif mode == "画像アップロードモード":
+    # 画像アップロード
+    st.subheader("画像をアップロード")
+    uploaded_image = st.file_uploader("写真をアップロード", type=["jpg", "jpeg", "png"])
+
+    if uploaded_image is not None:
+        # アップロードされた画像を処理
+        image = Image.open(uploaded_image)
+        frame = np.array(image)
+        st.image(frame, channels="RGB", caption="アップロードされた画像", use_column_width=True)
+
+        # MediaPipeでポーズ検出
+        results = pose.process(frame)
+
+        # 骨格を描画
+        if results.pose_landmarks:
+            mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                                      landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=3),
+                                      connection_drawing_spec=mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2))
+
+        # 結果画像をStreamlitに表示
+        st.image(frame, channels="RGB", caption="骨格検出結果", use_column_width=True)
