@@ -79,11 +79,11 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             image = Image.open(uploaded_file).convert("RGB")
             frame = np.array(image)
             processed_frame, results = process_frame(frame.copy(), pose)
-            st.image(processed_frame, channels="RGB", use_column_width=True, caption="骨格検出結果 (アップロード画像)")
+            # 全画面表示の processed_frame は表示せず、縮小画像と散布図のみを表示
             
             if results.pose_landmarks:
                 h, w, _ = frame.shape
-                # 全てのランドマーク情報を作成
+                # 全てのランドマーク情報の作成
                 landmark_info = []
                 x_coords = []
                 y_coords = []
@@ -109,7 +109,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 new_size = (orig_w // 2, orig_h // 2)
                 small_image = image.resize(new_size)
                 
-                # 左：縮小画像、右：散布図を st.columns で並べる
+                # 左：縮小画像、右：散布図 を st.columns で並べる
                 col_img, col_plot = st.columns(2)
                 with col_img:
                     st.image(small_image, caption="縮小画像（約4分の1サイズ）", use_column_width=True)
@@ -135,7 +135,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 st.write("【画像上のポイントをクリックして選択してください】")
                 events = plotly_events(fig, click_event=True, hover_event=False)
                 
-                # ボタンで、クリックイベントから「頂点」または「その他の点」として追加
+                # ポイント追加ボタン
                 col3, col4 = st.columns(2)
                 with col3:
                     if st.button("頂点として追加"):
@@ -163,7 +163,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                         else:
                             st.warning("クリックイベントが検出されませんでした。")
                 
-                # 取り消しボタンを追加
+                # 取り消しボタン
                 col5, col6 = st.columns(2)
                 with col5:
                     if st.button("頂点の選択を取り消す"):
@@ -180,7 +180,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                         else:
                             st.info("その他の点は未選択です。")
                 
-                # 現在の選択状況を表示
+                # 現在の選択状況の表示
                 st.write("【現在の選択状況】")
                 if st.session_state.vertex is not None:
                     st.write(f"頂点: ポイント {st.session_state.vertex}")
@@ -191,7 +191,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 else:
                     st.write("その他の点: 未選択")
                 
-                # 表示ボタンで、選択された情報に応じた結果を表示
+                # 表示ボタンによる結果表示
                 if st.button("表示"):
                     if st.session_state.display_mode == "座標の表示":
                         display_info = []
@@ -207,7 +207,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                         elif len(st.session_state.others) < 2:
                             st.info("角度を計算するには、頂点以外から2点以上選択してください。")
                         else:
-                            # ここでは、その他の点から最初の2点を使用して角度計算
                             pt1 = st.session_state.others[0]
                             pt2 = st.session_state.others[1]
                             A = (landmark_info[pt1]["x (abs)"], landmark_info[pt1]["y (abs)"])
