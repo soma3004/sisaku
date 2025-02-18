@@ -55,10 +55,8 @@ with col1:
 with col2:
     if st.button("角度の表示"):
         st.session_state.display_mode = "角度の表示"
-        
 if "display_mode" not in st.session_state:
     st.session_state.display_mode = None
-
 st.write(f"【現在の表示モード】: {st.session_state.display_mode if st.session_state.display_mode else '未選択'}")
 
 # セッションステートで、頂点とその他の点を保持
@@ -106,23 +104,34 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     y_coords.append(abs_y)
                     text_coords.append(f"ID: {idx}<br>x: {abs_x}<br>y: {abs_y}")
                 
-                # Plotly によるインタラクティブなグラフ（画像サイズ固定）
-                fig = go.Figure()
-                fig.add_trace(go.Image(z=processed_frame))
-                fig.add_trace(go.Scatter(
-                    x=x_coords,
-                    y=y_coords,
-                    mode="markers",
-                    marker=dict(color="blue", size=6),
-                    text=text_coords,
-                    hoverinfo="text"
-                ))
-                fig.update_layout(
-                    xaxis=dict(fixedrange=True, range=[0, w]),
-                    yaxis=dict(fixedrange=True, autorange='reversed', range=[0, h]),
-                    margin=dict(l=0, r=0, t=0, b=0),
-                    dragmode=False
-                )
+                # 画像縮小：元画像サイズの約4分の1（各辺半分）
+                orig_w, orig_h = image.size  # PIL形式は (width, height)
+                new_size = (orig_w // 2, orig_h // 2)
+                small_image = image.resize(new_size)
+                
+                # 左：縮小画像、右：散布図を st.columns で並べる
+                col_img, col_plot = st.columns(2)
+                with col_img:
+                    st.image(small_image, caption="縮小画像（約4分の1サイズ）", use_column_width=True)
+                with col_plot:
+                    fig = go.Figure()
+                    fig.add_trace(go.Image(z=processed_frame))
+                    fig.add_trace(go.Scatter(
+                        x=x_coords,
+                        y=y_coords,
+                        mode="markers",
+                        marker=dict(color="blue", size=6),
+                        text=text_coords,
+                        hoverinfo="text"
+                    ))
+                    fig.update_layout(
+                        xaxis=dict(fixedrange=True, range=[0, w]),
+                        yaxis=dict(fixedrange=True, autorange='reversed', range=[0, h]),
+                        margin=dict(l=0, r=0, t=0, b=0),
+                        dragmode=False
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
                 st.write("【画像上のポイントをクリックして選択してください】")
                 events = plotly_events(fig, click_event=True, hover_event=False)
                 
