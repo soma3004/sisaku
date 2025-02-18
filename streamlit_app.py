@@ -17,7 +17,7 @@ mode = st.sidebar.radio("モードを選択", ["リアルタイム", "画像ア�
 
 if mode == "リアルタイム":
     # Webカメラの入力
-    camera_input = st.camera_input("カメラ映像を使用", key="camera", index=0)  # インデックスを変更して試す
+    camera_input = st.camera_input("カメラ映像を使用", key="camera")  # インデックスを変更して試す
 
     if camera_input is not None:
         # PIL形式の画像をNumPy配列に変換
