@@ -144,9 +144,10 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     
                     # 角度表示モードの場合
                     elif display_mode == "角度の表示":
-                        if len(st.session_state.selected_points) >= 3:
+                        if len(st.session_state.selected_points) == 3:
                             # 頂点とその他の2点を個別に選択できるようにする
-                            vertex = st.selectbox("頂点を選択してください", options=st.session_state.selected_points, format_func=lambda x: f"ポイント {x}")
+                            vertex = st.selectbox1("頂点を選択してください", options=st.session_state.selected_points, format_func=lambda x: f"ポイント {x}")
+                            vertex = st.selectbox2("残りの２点を選択してください", options=st.session_state.selected_points, format_func=lambda x: f"ポイント {x}")
                             # 頂点以外の選択済みポイントから2点を選ぶ（マルチセレクト）
                             other_options = [pt for pt in st.session_state.selected_points if pt != vertex]
                             other_selected = st.multiselect("その他2点を選択してください", options=other_options, format_func=lambda x: f"ポイント {x}")
