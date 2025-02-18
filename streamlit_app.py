@@ -65,8 +65,9 @@ mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 mp_hands = mp.solutions.hands
 
-# 共通処理：画像（またはカメラ入力）の取得と、オリジナルサイズの散布図作成
-def process_and_display(frame, orig_w, orig_h):
+# 共通処理：画像（またはカメラ入力）の取得と左右表示用散布図作成
+def process_and_display(frame, disp_w, disp_h):
+    # disp_w, disp_h：表示用の幅・高さ（アップロード時は縮小サイズ、リアルタイムはオリジナルサイズ）
     if detection_type == "骨格検出":
         with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as detector:
             processed_frame, results = process_frame_pose(frame.copy(), detector)
@@ -74,8 +75,8 @@ def process_and_display(frame, orig_w, orig_h):
         x_coords, y_coords, text_coords = [], [], []
         if results.pose_landmarks:
             for idx, landmark in enumerate(results.pose_landmarks.landmark):
-                abs_x = int(landmark.x * orig_w)
-                abs_y = int(landmark.y * orig_h)
+                abs_x = int(landmark.x * disp_w)
+                abs_y = int(landmark.y * disp_h)
                 landmark_info.append({
                     "type": "pose",
                     "id": idx,
@@ -97,8 +98,8 @@ def process_and_display(frame, orig_w, orig_h):
         if results.multi_hand_landmarks:
             for hand_idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
                 for j, landmark in enumerate(hand_landmarks.landmark):
-                    abs_x = int(landmark.x * orig_w)
-                    abs_y = int(landmark.y * orig_h)
+                    abs_x = int(landmark.x * disp_w)
+                    abs_y = int(landmark.y * disp_h)
                     landmark_info.append({
                         "type": "hand",
                         "id": f"{hand_idx}_{j}",
@@ -111,7 +112,6 @@ def process_and_display(frame, orig_w, orig_h):
                     x_coords.append(abs_x)
                     y_coords.append(abs_y)
                     text_coords.append(f"Hand {hand_idx}_{j}<br>x:{abs_x}<br>y:{abs_y}")
-    # 作成した processed_frame とランドマークデータを用いて散布図を作成（オリジナルサイズ）
     fig = go.Figure()
     fig.add_trace(go.Image(z=processed_frame))
     fig.add_trace(go.Scatter(
@@ -123,10 +123,10 @@ def process_and_display(frame, orig_w, orig_h):
         hoverinfo="text"
     ))
     fig.update_layout(
-        width=orig_w,
-        height=orig_h,
-        xaxis=dict(fixedrange=True, range=[0, orig_w]),
-        yaxis=dict(fixedrange=True, autorange='reversed', range=[0, orig_h]),
+        width=disp_w,
+        height=disp_h,
+        xaxis=dict(fixedrange=True, range=[0, disp_w]),
+        yaxis=dict(fixedrange=True, autorange='reversed', range=[0, disp_h]),
         margin=dict(l=0, r=0, t=0, b=0),
         dragmode=False
     )
@@ -140,12 +140,14 @@ if mode == "画像アップロード":
         image = Image.open(uploaded_file).convert("RGB")
         orig_w, orig_h = image.size
         frame = np.array(image)
-        # オリジナル画像はそのまま表示（左右ともにオリジナルサイズ）
+        # アップロード画像は1/4サイズに縮小して表示
+        disp_w, disp_h = orig_w // 2, orig_h // 2
+        small_image = image.resize((disp_w, disp_h))
         col_img, col_plot = st.columns(2)
         with col_img:
-            st.image(image, caption="アップロード画像（オリジナルサイズ）", width=orig_w)
+            st.image(small_image, caption="縮小画像（約1/4サイズ）", width=disp_w)
         with col_plot:
-            processed_frame, landmark_info, fig = process_and_display(frame, orig_w, orig_h)
+            processed_frame, landmark_info, fig = process_and_display(frame, disp_w, disp_h)
             st.plotly_chart(fig, use_container_width=False)
         
         st.write("【画像上のポイントをクリックして選択してください】")
@@ -240,8 +242,7 @@ elif mode == "リアルタイム":
         image = Image.open(camera_input).convert("RGB")
         orig_w, orig_h = image.size
         frame = np.array(image)
-        # リアルタイムの場合もオリジナル画像を1/4サイズに縮小して左右表示
-        small_image = image.resize((orig_w // 2, orig_h // 2))
+        # リアルタイムの場合はオリジナルサイズで表示
         if detection_type == "骨格検出":
             with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as detector:
                 processed_frame, results = process_frame_pose(frame.copy(), detector)
@@ -286,10 +287,10 @@ elif mode == "リアルタイム":
                         x_coords.append(abs_x)
                         y_coords.append(abs_y)
                         text_coords.append(f"Hand {hand_idx}_{j}<br>x:{abs_x}<br>y:{abs_y}")
-        # 左右カラム表示（リアルタイムもオリジナル画像を1/4サイズに縮小）
+        # リアルタイムも左右カラムに分割して表示（オリジナルサイズ）
         col_img, col_plot = st.columns(2)
         with col_img:
-            st.image(small_image, caption="カメラ映像（縮小表示）", use_column_width=True)
+            st.image(image, caption="カメラ映像（オリジナルサイズ）", width=orig_w)
         with col_plot:
             fig = go.Figure()
             fig.add_trace(go.Image(z=processed_frame))
