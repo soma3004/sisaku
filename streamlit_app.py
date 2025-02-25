@@ -140,21 +140,29 @@ if mode == "画像アップロード":
         image = Image.open(uploaded_file).convert("RGB")
         orig_w, orig_h = image.size
         frame = np.array(image)
-        # 画像サイズをそのまま使用
-        disp_w, disp_h = orig_w, orig_h  
+        # 画像サイズ取得
+        orig_w, orig_h = image.size
+
+        # 最大表示幅（画面幅に収める）
+        max_display_width = 700  # 画面幅に応じて適宜調整
+
+        # 縮小比率を計算（最大表示幅を超えないようにする）
+        scale = min(1.0, max_display_width / orig_w)  # 1.0以下なら縮小
+        disp_w, disp_h = int(orig_w * scale), int(orig_h * scale)
 
         col_img, col_plot = st.columns(2)
 
         with col_img:
-            st.image(image, caption="オリジナルサイズ画像", width=disp_w)
+            # 画面に収まるようにリサイズ
+            resized_image = image.resize((disp_w, disp_h)) if scale < 1.0 else image
+            st.image(resized_image, caption="画像（画面サイズに調整）", use_column_width=True)
 
         with col_plot:
             processed_frame, landmark_info, fig = process_and_display(frame, disp_w, disp_h)
-            st.plotly_chart(fig, use_container_width=False)
+            st.plotly_chart(fig, use_container_width=True)
 
         st.write("【画像上のポイントをクリックして選択してください】")
         events = plotly_events(fig, click_event=True, hover_event=False)
-
         
         # ポイント追加ボタン
         col3, col4 = st.columns(2)
