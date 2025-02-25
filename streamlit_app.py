@@ -287,28 +287,27 @@ elif mode == "リアルタイム":
                         text_coords.append(f"Hand {hand_idx}_{j}<br>x:{abs_x}<br>y:{abs_y}")
         # 左右カラム表示（リアルタイムもオリジナル画像を1/4サイズに縮小）
         col_img, col_plot = st.columns(2)
-        with col_img:
-            st.image(small_image, caption="カメラ映像（縮小表示）", use_column_width=True)
-        with col_plot:
-            fig = go.Figure()
-            fig.add_trace(go.Image(z=processed_frame))
-            fig.add_trace(go.Scatter(
-                x=x_coords,
-                y=y_coords,
-                mode="markers",
-                marker=dict(color="blue", size=6),
-                text=text_coords,
-                hoverinfo="text"
-            ))
-            fig.update_layout(
-                width=orig_w,
-                height=orig_h,
-                xaxis=dict(fixedrange=True, range=[0, orig_w]),
-                yaxis=dict(fixedrange=True, autorange='reversed', range=[0, orig_h]),
-                margin=dict(l=0, r=0, t=0, b=0),
-                dragmode=False
-            )
-            st.plotly_chart(fig, use_container_width=False)
+        
+        
+        fig = go.Figure()
+        fig.add_trace(go.Image(z=processed_frame))
+        fig.add_trace(go.Scatter(
+            x=x_coords,
+            y=y_coords,
+            mode="markers",
+            marker=dict(color="blue", size=6),
+            text=text_coords,
+            hoverinfo="text"
+        ))
+        fig.update_layout(
+            width=orig_w,
+            height=orig_h,
+            xaxis=dict(fixedrange=True, range=[0, orig_w]),
+            yaxis=dict(fixedrange=True, autorange='reversed', range=[0, orig_h]),
+            margin=dict(l=0, r=0, t=0, b=0),
+            dragmode=False
+        )
+        st.plotly_chart(fig, use_container_width=False)
         st.write("【画像上のポイントをクリックして選択してください】")
         events = plotly_events(fig, click_event=True, hover_event=False)
         col3, col4 = st.columns(2)
