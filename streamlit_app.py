@@ -35,8 +35,8 @@ def process_frame_pose(frame, pose_detector):
             frame,
             results.pose_landmarks,
             mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
-            connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=4)
+            landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=1, circle_radius=1),
+            connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 0), thickness=1)
         )
     return frame, results
 
