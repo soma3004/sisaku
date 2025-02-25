@@ -143,7 +143,6 @@ if mode == "画像アップロード":
         # オリジナル画像はそのまま表示（左右ともにオリジナルサイズ）
         col_img, col_plot = st.columns(2)
         
-        st.image(image, caption="アップロード画像（オリジナルサイズ）", width=orig_w)
         
         processed_frame, landmark_info, fig = process_and_display(frame, orig_w, orig_h)
         st.plotly_chart(fig, use_container_width=False)
