@@ -142,11 +142,11 @@ if mode == "画像アップロード":
         frame = np.array(image)
         # オリジナル画像はそのまま表示（左右ともにオリジナルサイズ）
         col_img, col_plot = st.columns(2)
-        with col_img:
-            st.image(image, caption="アップロード画像（オリジナルサイズ）", width=orig_w)
-        with col_plot:
-            processed_frame, landmark_info, fig = process_and_display(frame, orig_w, orig_h)
-            st.plotly_chart(fig, use_container_width=False)
+        
+        st.image(image, caption="アップロード画像（オリジナルサイズ）", width=orig_w)
+        
+        processed_frame, landmark_info, fig = process_and_display(frame, orig_w, orig_h)
+        st.plotly_chart(fig, use_container_width=False)
         
         st.write("【画像上のポイントをクリックして選択してください】")
         events = plotly_events(fig, click_event=True, hover_event=False)
