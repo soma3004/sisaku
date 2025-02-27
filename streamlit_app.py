@@ -144,7 +144,7 @@ if mode == "画像アップロード":
         col_img, col_plot = st.columns(2)
         
         
-        processed_frame, landmark_info, fig = process_and_display(frame, orig_w, orig_h)
+        processed_frame, landmark_info, fig = process_and_display(frame.copy(), orig_w, orig_h)
         st.plotly_chart(fig, use_container_width=False)
         
         st.write("【画像上のポイントをクリックして選択してください】")
@@ -388,6 +388,6 @@ elif mode == "リアルタイム":
     else:
         st.write("モード：画像アップロード または リアルタイム を選択してください。")
 
-print(type(frame))  # データ型を確認
+print(type(frame.copy()))  # データ型を確認
 print(frame.shape)  # 画像の形状を確認
 print(frame.dtype)  # データの型を確認
