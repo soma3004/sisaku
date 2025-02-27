@@ -68,7 +68,7 @@ mp_hands = mp.solutions.hands
 # 共通処理：画像（またはカメラ入力）の取得と、オリジナルサイズの散布図作成
 def process_and_display(frame, orig_w, orig_h):
     if frame is None:
-    raise ValueError("Received an empty frame!")
+        raise ValueError("Received an empty frame!")
 
     if detection_type == "骨格検出":
         with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as detector:
