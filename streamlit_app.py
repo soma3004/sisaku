@@ -388,6 +388,4 @@ elif mode == "リアルタイム":
     else:
         st.write("モード：画像アップロード または リアルタイム を選択してください。")
 
-print(type(frame.copy()))  # データ型を確認
-print(frame.shape)  # 画像の形状を確認
-print(frame.dtype)  # データの型を確認
+
