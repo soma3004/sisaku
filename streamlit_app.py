@@ -144,7 +144,7 @@ if mode == "画像アップロード":
         col_img, col_plot = st.columns(2)
         
         
-        processed_frame, landmark_info, fig = process_and_display(frame.copy(), orig_w, orig_h)
+        processed_frame, landmark_info, fig = process_and_display(frame, orig_w, orig_h)
         st.plotly_chart(fig, use_container_width=False)
         
         st.write("【画像上のポイントをクリックして選択してください】")
