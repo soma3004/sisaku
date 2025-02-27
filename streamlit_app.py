@@ -387,3 +387,7 @@ elif mode == "リアルタイム":
                         st.error("角度を計算できませんでした。")
     else:
         st.write("モード：画像アップロード または リアルタイム を選択してください。")
+
+print(type(frame))  # データ型を確認
+print(frame.shape)  # 画像の形状を確認
+print(frame.dtype)  # データの型を確認
